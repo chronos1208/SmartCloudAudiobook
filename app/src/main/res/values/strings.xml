@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">SmartCloud Audiobook</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_sync">Drive Sync &amp; Scan</string>
+    <string name="nav_player">Player</string>
+    <string name="action_open_pdf">Open PDF</string>
+    <string name="action_add_bookmark">Add Bookmark</string>
+    <string name="label_playback_speed">Playback Speed</string>
+    <string name="label_sleep_timer">Sleep Timer</string>
+    <string name="msg_empty_library">No audiobooks found.</string>
+</resources>
