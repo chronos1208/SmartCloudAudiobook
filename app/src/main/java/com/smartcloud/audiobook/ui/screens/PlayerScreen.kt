@@ -18,22 +18,27 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.smartcloud.audiobook.R
 
 @Composable
-fun PlayerScreen(modifier: Modifier = Modifier) {
-    var isPlaying by remember { mutableStateOf(false) }
-    var progress by remember { mutableFloatStateOf(0.14f) }
+fun PlayerScreen(
+    modifier: Modifier = Modifier,
+    viewModel: PlayerViewModel = hiltViewModel(),
+) {
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
+
+    val safeDuration = duration.coerceAtLeast(1L)
+    val sliderValue = (currentPosition.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
 
     Column(
         modifier = modifier
@@ -72,8 +77,11 @@ fun PlayerScreen(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(20.dp))
 
         Slider(
-            value = progress,
-            onValueChange = { progress = it },
+            value = sliderValue,
+            onValueChange = { newValue ->
+                val seekPosition = (safeDuration * newValue).toLong()
+                viewModel.seekTo(seekPosition)
+            },
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -81,8 +89,8 @@ fun PlayerScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(text = "01:23:45")
-            Text(text = "10:00:00")
+            Text(text = currentPosition.toPlaybackTime())
+            Text(text = duration.toPlaybackTime())
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -91,13 +99,13 @@ fun PlayerScreen(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            IconButton(onClick = {}) {
+            IconButton(onClick = viewModel::skipBackward10Seconds) {
                 Text(text = "⏪10")
             }
-            IconButton(onClick = { isPlaying = !isPlaying }) {
+            IconButton(onClick = viewModel::togglePlayPause) {
                 Text(text = if (isPlaying) "⏸" else "▶")
             }
-            IconButton(onClick = {}) {
+            IconButton(onClick = viewModel::skipForward30Seconds) {
                 Text(text = "30⏩")
             }
         }
@@ -139,5 +147,17 @@ fun PlayerScreen(modifier: Modifier = Modifier) {
         ) {
             Text(text = stringResource(id = R.string.action_open_pdf))
         }
+    }
+}
+
+private fun Long.toPlaybackTime(): String {
+    val totalSeconds = (this.coerceAtLeast(0L) / 1000L).toInt()
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
     }
 }
