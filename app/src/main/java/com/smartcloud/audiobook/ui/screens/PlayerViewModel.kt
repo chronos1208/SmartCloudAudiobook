@@ -2,13 +2,13 @@ package com.smartcloud.audiobook.ui.screens
 
 import android.app.Application
 import android.content.ComponentName
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.google.common.util.concurrent.MoreExecutors
 import com.smartcloud.audiobook.service.AudiobookPlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -72,7 +72,7 @@ class PlayerViewModel @Inject constructor(
                     startProgressUpdates()
                 }
             },
-            MoreExecutors.directExecutor(),
+            ContextCompat.getMainExecutor(context),
         )
     }
 
