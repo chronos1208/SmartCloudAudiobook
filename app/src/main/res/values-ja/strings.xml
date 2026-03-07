@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">SmartCloud オーディオブック</string>
+    <string name="nav_library">ライブラリ</string>
+    <string name="nav_sync">ドライブ同期・スキャン</string>
+    <string name="nav_player">プレーヤー</string>
+    <string name="action_open_pdf">PDFを開く</string>
+    <string name="action_add_bookmark">しおりを追加</string>
+    <string name="label_playback_speed">再生速度</string>
+    <string name="label_sleep_timer">スリープタイマー</string>
+    <string name="msg_empty_library">オーディオブックが見つかりません。</string>
+</resources>
