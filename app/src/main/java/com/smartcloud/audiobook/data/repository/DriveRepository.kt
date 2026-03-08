@@ -1,17 +1,24 @@
 package com.smartcloud.audiobook.data.repository
 
 import com.google.api.services.drive.Drive
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.services.drive.model.FileList
+import com.smartcloud.audiobook.data.auth.GoogleAccountStore
 import com.smartcloud.audiobook.data.local.AudioTrackEntity
 import com.smartcloud.audiobook.data.local.AudiobookEntity
+import com.smartcloud.audiobook.data.remote.ITunesApiService
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DriveRepository @Inject constructor(
     private val driveService: Drive,
+    private val accountStore: GoogleAccountStore,
+    private val credential: GoogleAccountCredential,
+    private val iTunesApiService: ITunesApiService,
 ) {
     suspend fun scanAudiobooks(rootFolderId: String): List<DriveAudiobookBundle> {
+        credential.selectedAccountName = accountStore.getSelectedAccountName()
         val groupedFiles = linkedMapOf<String, FolderScanBucket>()
         scanFolderRecursive(folderId = rootFolderId, folderName = "Root", groupedFiles = groupedFiles)
 
@@ -33,12 +40,13 @@ class DriveRepository @Inject constructor(
                 if (tracks.isEmpty()) {
                     null
                 } else {
+                    val metadata = fetchMetadata(bucket.folderName)
                     val audiobook = AudiobookEntity(
                         id = bucket.folderId,
-                        title = bucket.folderName,
-                        author = null,
-                        description = null,
-                        coverUrl = null,
+                        title = metadata?.trackName ?: bucket.folderName,
+                        author = metadata?.artistName,
+                        description = metadata?.description,
+                        coverUrl = metadata?.artworkUrl600 ?: metadata?.artworkUrl100,
                         pdfFileId = bucket.pdfFile?.id,
                         currentTrackId = null,
                         currentPosition = 0L,
@@ -95,6 +103,10 @@ class DriveRepository @Inject constructor(
             nextPageToken = result.nextPageToken
         } while (nextPageToken != null)
     }
+
+    private suspend fun fetchMetadata(query: String) = runCatching {
+        iTunesApiService.searchAudiobooks(keyword = query).results.firstOrNull()
+    }.getOrNull()
 
     private data class FolderScanBucket(
         val folderId: String,

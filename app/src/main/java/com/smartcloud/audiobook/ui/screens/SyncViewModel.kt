@@ -1,7 +1,9 @@
 package com.smartcloud.audiobook.ui.screens
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.smartcloud.audiobook.data.auth.AuthManager
 import com.smartcloud.audiobook.data.local.AudiobookDao
 import com.smartcloud.audiobook.data.repository.DriveRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +19,7 @@ import kotlinx.coroutines.launch
 class SyncViewModel @Inject constructor(
     private val driveRepository: DriveRepository,
     private val audiobookDao: AudiobookDao,
+    private val authManager: AuthManager,
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -24,6 +27,8 @@ class SyncViewModel @Inject constructor(
 
     private val _scanResult = MutableStateFlow<List<String>>(emptyList())
     val scanResult: StateFlow<List<String>> = _scanResult.asStateFlow()
+
+    suspend fun signIn(activity: Activity): Result<String> = authManager.signInForDriveReadOnly(activity)
 
     fun startScan(rootFolderId: String = DEFAULT_ROOT_FOLDER_ID) {
         viewModelScope.launch(Dispatchers.IO) {

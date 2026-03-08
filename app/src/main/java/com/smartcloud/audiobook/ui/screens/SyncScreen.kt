@@ -1,5 +1,6 @@
 package com.smartcloud.audiobook.ui.screens
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,17 +16,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun SyncScreen(
     modifier: Modifier = Modifier,
     viewModel: SyncViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val scanResult by viewModel.scanResult.collectAsStateWithLifecycle()
 
@@ -36,7 +42,13 @@ fun SyncScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Button(
-            onClick = { viewModel.startScan() },
+            onClick = {
+                val activity = context as? Activity ?: return@Button
+                coroutineScope.launch {
+                    viewModel.signIn(activity)
+                        .onSuccess { viewModel.startScan() }
+                }
+            },
             enabled = !isLoading,
             modifier = Modifier.padding(vertical = 24.dp),
         ) {

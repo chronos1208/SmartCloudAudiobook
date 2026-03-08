@@ -8,4 +8,5 @@
     <string name="label_playback_speed">Playback Speed</string>
     <string name="label_sleep_timer">Sleep Timer</string>
     <string name="msg_empty_library">No audiobooks found.</string>
+    <string name="google_web_client_id"></string>
 </resources>

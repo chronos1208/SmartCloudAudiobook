@@ -6,6 +6,7 @@ import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccoun
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
+import com.smartcloud.audiobook.data.auth.GoogleAccountStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,12 +19,21 @@ import javax.inject.Singleton
 object DriveModule {
     @Provides
     @Singleton
-    fun provideDriveService(@ApplicationContext context: Context): Drive {
-        val credential = GoogleAccountCredential.usingOAuth2(
+    fun provideGoogleAccountCredential(
+        @ApplicationContext context: Context,
+        googleAccountStore: GoogleAccountStore,
+    ): GoogleAccountCredential {
+        return GoogleAccountCredential.usingOAuth2(
             context,
             listOf(DriveScopes.DRIVE_READONLY),
-        )
-        // TODO(Phase5): Set selected account from Google Sign-In / Credential Manager result.
+        ).apply {
+            selectedAccountName = googleAccountStore.getSelectedAccountName()
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideDriveService(credential: GoogleAccountCredential): Drive {
         return Drive.Builder(
             AndroidHttp.newCompatibleTransport(),
             GsonFactory.getDefaultInstance(),
