@@ -14,38 +14,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-
-data class LibraryBookUiModel(
-    val id: String,
-    val title: String,
-    val author: String,
-)
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.smartcloud.audiobook.data.local.AudiobookEntity
 
 @Composable
 fun LibraryScreen(
     onBookClick: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: LibraryViewModel = hiltViewModel(),
 ) {
-    val books = remember {
-        listOf(
-            LibraryBookUiModel("1", "Atomic Habits", "James Clear"),
-            LibraryBookUiModel("2", "Deep Work", "Cal Newport"),
-            LibraryBookUiModel("3", "Clean Code", "Robert C. Martin"),
-            LibraryBookUiModel("4", "The Pragmatic Programmer", "David Thomas"),
-            LibraryBookUiModel("5", "Zero to One", "Peter Thiel"),
-            LibraryBookUiModel("6", "Sapiens", "Yuval Noah Harari"),
-        )
-    }
+    val books by viewModel.audiobooks.collectAsStateWithLifecycle()
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 150.dp),
@@ -54,7 +48,7 @@ fun LibraryScreen(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        items(books) { book ->
+        items(books, key = { it.id }) { book ->
             BookGridItem(
                 book = book,
                 onClick = onBookClick,
@@ -65,7 +59,7 @@ fun LibraryScreen(
 
 @Composable
 private fun BookGridItem(
-    book: LibraryBookUiModel,
+    book: AudiobookEntity,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -84,11 +78,20 @@ private fun BookGridItem(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = "Cover",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!book.coverUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = book.coverUrl,
+                    contentDescription = book.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.MenuBook,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -101,7 +104,7 @@ private fun BookGridItem(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = book.author,
+            text = book.author.orEmpty().ifBlank { "Unknown author" },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
