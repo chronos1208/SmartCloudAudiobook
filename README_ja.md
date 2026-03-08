@@ -175,3 +175,11 @@ Android Studio から実行可能。CLI の場合:
 ## 📄 ライセンス
 
 必要に応じてライセンス情報（例: MIT / Apache-2.0）を追記してください。
+
+
+## 🆕 Phase 6 実装メモ
+
+- ExoPlayer は Google Drive `files/{fileId}?alt=media` へ Bearer トークン付きでアクセスし、ストリーミング再生します。
+- Player 画面は Room の `AudioTrackEntity` から対象オーディオブックのトラック一覧を読み込み、プレイリスト再生します。
+- アプリ内 PDF ビューアを追加し、Drive の PDF をキャッシュへ保存して `PdfRenderer` + Compose `LazyColumn` で表示します。
+- 画面遷移は `Player(audiobookId)` / `PdfViewer(pdfFileId)` のルートパラメータに対応しました。

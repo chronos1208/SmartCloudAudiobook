@@ -1,8 +1,6 @@
 package com.smartcloud.audiobook.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,12 +15,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,58 +27,54 @@ import com.smartcloud.audiobook.R
 
 @Composable
 fun PlayerScreen(
+    audiobookId: String,
+    onOpenPdf: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle()
     val duration by viewModel.duration.collectAsStateWithLifecycle()
+    val pdfFileId by viewModel.currentAudiobookPdfFileId.collectAsStateWithLifecycle()
+    val title by viewModel.currentAudiobookTitle.collectAsStateWithLifecycle()
 
-    val safeDuration = duration.coerceAtLeast(1L)
-    val sliderValue = (currentPosition.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+    LaunchedEffect(audiobookId) {
+        viewModel.prepareAudiobook(audiobookId)
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(20.dp),
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(280.dp)
-                .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "Cover Art",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
         Text(
-            text = "Sample Audiobook Title",
+            text = title.ifBlank { "SmartCloud Audiobook" },
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         Text(
-            text = "by Sample Author",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "Chapter playback",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        val sliderValue = when {
+            duration <= 0L -> 0f
+            else -> currentPosition.coerceIn(0L, duration).toFloat()
+        }
 
         Slider(
             value = sliderValue,
-            onValueChange = { newValue ->
-                val seekPosition = (safeDuration * newValue).toLong()
-                viewModel.seekTo(seekPosition)
+            onValueChange = { seekPosition ->
+                viewModel.seekTo(seekPosition.toLong())
             },
+            valueRange = 0f..(duration.coerceAtLeast(1L).toFloat()),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -142,7 +135,8 @@ fun PlayerScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Button(
-            onClick = {},
+            onClick = { pdfFileId?.let(onOpenPdf) },
+            enabled = !pdfFileId.isNullOrBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(text = stringResource(id = R.string.action_open_pdf))

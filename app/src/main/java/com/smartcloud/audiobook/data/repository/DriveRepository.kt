@@ -1,12 +1,15 @@
 package com.smartcloud.audiobook.data.repository
 
-import com.google.api.services.drive.Drive
+import android.content.Context
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.FileList
 import com.smartcloud.audiobook.data.auth.GoogleAccountStore
 import com.smartcloud.audiobook.data.local.AudioTrackEntity
 import com.smartcloud.audiobook.data.local.AudiobookEntity
 import com.smartcloud.audiobook.data.remote.ITunesApiService
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,6 +19,7 @@ class DriveRepository @Inject constructor(
     private val accountStore: GoogleAccountStore,
     private val credential: GoogleAccountCredential,
     private val iTunesApiService: ITunesApiService,
+    @ApplicationContext private val context: Context,
 ) {
     suspend fun scanAudiobooks(rootFolderId: String): List<DriveAudiobookBundle> {
         credential.selectedAccountName = accountStore.getSelectedAccountName()
@@ -55,6 +59,15 @@ class DriveRepository @Inject constructor(
                     DriveAudiobookBundle(audiobook = audiobook, tracks = tracks)
                 }
             }
+    }
+
+    suspend fun downloadPdfToCache(pdfFileId: String): File {
+        credential.selectedAccountName = accountStore.getSelectedAccountName()
+        val outputFile = File(context.cacheDir, "pdf-$pdfFileId.pdf")
+        outputFile.outputStream().use { stream ->
+            driveService.files().get(pdfFileId).executeMediaAndDownloadTo(stream)
+        }
+        return outputFile
     }
 
     private fun scanFolderRecursive(
