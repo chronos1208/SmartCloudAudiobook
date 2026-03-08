@@ -14,8 +14,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,8 +26,8 @@ fun SyncScreen(
     modifier: Modifier = Modifier,
     viewModel: SyncViewModel = hiltViewModel(),
 ) {
-    val isLoading by viewModel.isLoading.collectAsState()
-    val scanResult by viewModel.scanResult.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val scanResult by viewModel.scanResult.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
