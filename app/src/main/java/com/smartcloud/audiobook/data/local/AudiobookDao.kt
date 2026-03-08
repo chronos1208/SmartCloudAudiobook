@@ -17,6 +17,12 @@ interface AudiobookDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertTracks(tracks: List<AudioTrackEntity>)
 
+    @Query("SELECT * FROM audiobooks WHERE id = :audiobookId LIMIT 1")
+    suspend fun getAudiobookById(audiobookId: String): AudiobookEntity?
+
+    @Query("SELECT * FROM audio_tracks WHERE audiobookId = :audiobookId ORDER BY trackOrder ASC, fileName ASC")
+    suspend fun getTracksByAudiobookId(audiobookId: String): List<AudioTrackEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBookmark(bookmark: BookmarkEntity)
 }

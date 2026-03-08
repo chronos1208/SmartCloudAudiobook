@@ -1,11 +1,18 @@
 package com.smartcloud.audiobook.service
 
-import androidx.media3.common.MediaItem
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class AudiobookPlaybackService : MediaSessionService() {
+
+    @Inject
+    lateinit var driveDataSourceFactory: DataSource.Factory
 
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
@@ -13,11 +20,9 @@ class AudiobookPlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
 
-        val exoPlayer = ExoPlayer.Builder(this).build().apply {
-            val demoMediaItem = MediaItem.fromUri(DEMO_AUDIO_URL)
-            setMediaItem(demoMediaItem)
-            prepare()
-        }
+        val exoPlayer = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(driveDataSourceFactory))
+            .build()
 
         player = exoPlayer
         mediaSession = MediaSession.Builder(this, exoPlayer).build()
@@ -33,10 +38,5 @@ class AudiobookPlaybackService : MediaSessionService() {
         mediaSession = null
         player = null
         super.onDestroy()
-    }
-
-    companion object {
-        private const val DEMO_AUDIO_URL =
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
     }
 }

@@ -35,7 +35,7 @@ import com.smartcloud.audiobook.data.local.AudiobookEntity
 
 @Composable
 fun LibraryScreen(
-    onBookClick: () -> Unit,
+    onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -51,7 +51,7 @@ fun LibraryScreen(
         items(books, key = { it.id }) { book ->
             BookGridItem(
                 book = book,
-                onClick = onBookClick,
+                onClick = { onBookClick(book.id) },
             )
         }
     }

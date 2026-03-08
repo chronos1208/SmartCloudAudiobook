@@ -176,3 +176,11 @@ Contributions are welcome! If you plan significant changes, please open an issue
 ## 📄 License
 
 Add your preferred license information here (e.g., MIT, Apache-2.0).
+
+
+## 🆕 Phase 6 Implementation Notes
+
+- ExoPlayer now streams tracks from Google Drive `files/{fileId}?alt=media` with OAuth Bearer token headers.
+- Player screen opens per-audiobook playlists loaded from Room `AudioTrackEntity` records.
+- Added an in-app PDF viewer screen that downloads Drive PDFs to cache and renders pages via `PdfRenderer` + Compose `LazyColumn`.
+- Added navigation route parameters for `Player(audiobookId)` and `PdfViewer(pdfFileId)`.

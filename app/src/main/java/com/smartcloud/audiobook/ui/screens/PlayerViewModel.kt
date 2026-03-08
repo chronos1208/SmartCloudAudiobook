@@ -6,22 +6,25 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.smartcloud.audiobook.data.local.AudiobookDao
 import com.smartcloud.audiobook.service.AudiobookPlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     application: Application,
+    private val audiobookDao: AudiobookDao,
 ) : AndroidViewModel(application) {
 
     private val _isPlaying = MutableStateFlow(false)
@@ -33,8 +36,15 @@ class PlayerViewModel @Inject constructor(
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
 
+    private val _currentAudiobookPdfFileId = MutableStateFlow<String?>(null)
+    val currentAudiobookPdfFileId: StateFlow<String?> = _currentAudiobookPdfFileId.asStateFlow()
+
+    private val _currentAudiobookTitle = MutableStateFlow("")
+    val currentAudiobookTitle: StateFlow<String> = _currentAudiobookTitle.asStateFlow()
+
     private var mediaController: MediaController? = null
     private var progressJob: Job? = null
+    private var pendingAudiobookId: String? = null
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -70,10 +80,47 @@ class PlayerViewModel @Inject constructor(
                     _currentPosition.value = controller.currentPosition.coerceAtLeast(0L)
                     _duration.value = controller.duration.coerceAtLeast(0L)
                     startProgressUpdates()
+                    pendingAudiobookId?.let { loadAudiobook(it) }
                 }
             },
             ContextCompat.getMainExecutor(context),
         )
+    }
+
+    fun prepareAudiobook(audiobookId: String) {
+        pendingAudiobookId = audiobookId
+        if (mediaController != null) {
+            loadAudiobook(audiobookId)
+        }
+    }
+
+    private fun loadAudiobook(audiobookId: String) {
+        viewModelScope.launch {
+            val audiobook = audiobookDao.getAudiobookById(audiobookId) ?: return@launch
+            val tracks = audiobookDao.getTracksByAudiobookId(audiobookId)
+            if (tracks.isEmpty()) return@launch
+
+            _currentAudiobookPdfFileId.value = audiobook.pdfFileId
+            _currentAudiobookTitle.value = audiobook.title
+
+            val mediaItems = tracks.map { track ->
+                MediaItem.Builder()
+                    .setMediaId(track.id)
+                    .setUri(DRIVE_MEDIA_URL_TEMPLATE.format(track.id))
+                    .setMimeType(MimeTypes.AUDIO_MPEG)
+                    .build()
+            }
+
+            val startIndex = tracks.indexOfFirst { it.id == audiobook.currentTrackId }
+                .takeIf { it >= 0 }
+                ?: 0
+
+            mediaController?.apply {
+                setMediaItems(mediaItems, startIndex, audiobook.currentPosition.coerceAtLeast(0L))
+                prepare()
+                playWhenReady = true
+            }
+        }
     }
 
     private fun startProgressUpdates() {
@@ -118,5 +165,10 @@ class PlayerViewModel @Inject constructor(
         mediaController?.release()
         mediaController = null
         super.onCleared()
+    }
+
+    companion object {
+        private const val DRIVE_MEDIA_URL_TEMPLATE =
+            "https://www.googleapis.com/drive/v3/files/%s?alt=media"
     }
 }
