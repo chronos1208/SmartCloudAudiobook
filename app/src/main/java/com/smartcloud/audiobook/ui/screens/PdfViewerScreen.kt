@@ -23,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -47,7 +46,8 @@ fun PdfViewerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(innerPadding)
+                        .background(MaterialTheme.colorScheme.background),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
@@ -61,6 +61,7 @@ fun PdfViewerScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .background(MaterialTheme.colorScheme.background)
                         .padding(24.dp),
                 )
             }
@@ -72,6 +73,7 @@ fun PdfViewerScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .background(MaterialTheme.colorScheme.background)
                         .padding(24.dp),
                 )
             }
@@ -80,7 +82,8 @@ fun PdfViewerScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(innerPadding)
+                        .background(MaterialTheme.colorScheme.background),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -133,7 +136,7 @@ private fun PdfPageItem(
                     .fillMaxWidth()
                     .height(240.dp)
                     .padding(horizontal = 12.dp)
-                    .background(Color.LightGray),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator()
@@ -146,7 +149,7 @@ private fun PdfPageItem(
                     .fillMaxWidth()
                     .height(240.dp)
                     .padding(horizontal = 12.dp)
-                    .background(Color.LightGray),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(text = "Failed to render page")
