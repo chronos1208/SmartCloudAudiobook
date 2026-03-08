@@ -24,7 +24,10 @@ interface AudiobookDao {
     suspend fun getTracksByAudiobookId(audiobookId: String): List<AudioTrackEntity>
 
     @Query("UPDATE audio_tracks SET localUri = :localUri WHERE id = :trackId")
-    suspend fun updateTrackLocalUri(trackId: String, localUri: String)
+    suspend fun updateTrackLocalUri(trackId: String, localUri: String?)
+
+    @Query("UPDATE audio_tracks SET localUri = NULL WHERE audiobookId = :audiobookId")
+    suspend fun clearTrackLocalUrisByAudiobookId(audiobookId: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBookmark(bookmark: BookmarkEntity)
