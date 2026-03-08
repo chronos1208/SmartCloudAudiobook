@@ -1,15 +1,16 @@
 package com.smartcloud.audiobook.ui.screens
 
 import android.graphics.Bitmap
-import android.graphics.pdf.PdfRenderer
-import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -22,16 +23,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import com.smartcloud.audiobook.data.repository.DriveRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import java.io.File
-import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun PdfViewerScreen(
@@ -39,19 +35,29 @@ fun PdfViewerScreen(
     modifier: Modifier = Modifier,
     viewModel: PdfViewerViewModel = hiltViewModel(),
 ) {
-    var pageBitmaps by remember(pdfFileId) { mutableStateOf<List<Bitmap>>(emptyList()) }
-    var isLoading by remember(pdfFileId) { mutableStateOf(true) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(pdfFileId) {
-        isLoading = true
-        pageBitmaps = viewModel.loadPdfPages(pdfFileId)
-        isLoading = false
+        viewModel.loadPdf(pdfFileId)
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         when {
-            isLoading -> {
-                CircularProgressIndicator(
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            uiState.errorMessage != null -> {
+                Text(
+                    text = uiState.errorMessage ?: "Failed to load PDF",
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
@@ -59,7 +65,7 @@ fun PdfViewerScreen(
                 )
             }
 
-            pageBitmaps.isEmpty() -> {
+            uiState.pageCount == 0 -> {
                 Text(
                     text = "No PDF pages",
                     style = MaterialTheme.typography.bodyLarge,
@@ -78,18 +84,10 @@ fun PdfViewerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    itemsIndexed(pageBitmaps) { index, bitmap ->
-                        Text(
-                            text = "Page ${index + 1}",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "PDF page ${index + 1}",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp),
+                    items(count = uiState.pageCount) { pageIndex ->
+                        PdfPageItem(
+                            pageIndex = pageIndex,
+                            renderPage = viewModel::renderPage,
                         )
                     }
                 }
@@ -98,32 +96,61 @@ fun PdfViewerScreen(
     }
 }
 
-@HiltViewModel
-class PdfViewerViewModel @Inject constructor(
-    private val driveRepository: DriveRepository,
-) : ViewModel() {
+@Composable
+private fun PdfPageItem(
+    pageIndex: Int,
+    renderPage: suspend (Int) -> Bitmap?,
+) {
+    var pageBitmap by remember(pageIndex) { mutableStateOf<Bitmap?>(null) }
+    var isPageLoading by remember(pageIndex) { mutableStateOf(true) }
 
-    suspend fun loadPdfPages(pdfFileId: String): List<Bitmap> = withContext(Dispatchers.IO) {
-        val cachedPdf: File = driveRepository.downloadPdfToCache(pdfFileId)
-        val fileDescriptor = ParcelFileDescriptor.open(cachedPdf, ParcelFileDescriptor.MODE_READ_ONLY)
-        val renderer = PdfRenderer(fileDescriptor)
+    LaunchedEffect(pageIndex) {
+        isPageLoading = true
+        pageBitmap = renderPage(pageIndex)
+        isPageLoading = false
+    }
 
-        try {
-            (0 until renderer.pageCount).map { index ->
-                renderer.openPage(index).use { page ->
-                    val scale = 2
-                    val bitmap = Bitmap.createBitmap(
-                        page.width * scale,
-                        page.height * scale,
-                        Bitmap.Config.ARGB_8888,
-                    )
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    bitmap
-                }
+    Text(
+        text = "Page ${pageIndex + 1}",
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+
+    when {
+        pageBitmap != null -> {
+            Image(
+                bitmap = pageBitmap!!.asImageBitmap(),
+                contentDescription = "PDF page ${pageIndex + 1}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+            )
+        }
+
+        isPageLoading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .padding(horizontal = 12.dp)
+                    .background(Color.LightGray),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
             }
-        } finally {
-            renderer.close()
-            fileDescriptor.close()
+        }
+
+        else -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .padding(horizontal = 12.dp)
+                    .background(Color.LightGray),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = "Failed to render page")
+            }
         }
     }
 }
