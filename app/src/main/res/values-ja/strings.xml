@@ -8,4 +8,6 @@
     <string name="label_playback_speed">再生速度</string>
     <string name="label_sleep_timer">スリープタイマー</string>
     <string name="msg_empty_library">オーディオブックが見つかりません。</string>
+    <string name="action_download">ダウンロード</string>
+    <string name="msg_downloading">オフライン再生用にダウンロード中…</string>
 </resources>

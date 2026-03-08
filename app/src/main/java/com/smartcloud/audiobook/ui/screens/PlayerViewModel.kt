@@ -2,6 +2,8 @@ package com.smartcloud.audiobook.ui.screens
 
 import android.app.Application
 import android.content.ComponentName
+import android.net.Uri
+import java.io.File
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,9 +13,11 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.smartcloud.audiobook.data.local.AudiobookDao
+import com.smartcloud.audiobook.data.repository.DriveRepository
 import com.smartcloud.audiobook.service.AudiobookPlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +29,7 @@ import kotlinx.coroutines.launch
 class PlayerViewModel @Inject constructor(
     application: Application,
     private val audiobookDao: AudiobookDao,
+    private val driveRepository: DriveRepository,
 ) : AndroidViewModel(application) {
 
     private val _isPlaying = MutableStateFlow(false)
@@ -41,6 +46,9 @@ class PlayerViewModel @Inject constructor(
 
     private val _currentAudiobookTitle = MutableStateFlow("")
     val currentAudiobookTitle: StateFlow<String> = _currentAudiobookTitle.asStateFlow()
+
+    private val _isDownloading = MutableStateFlow(false)
+    val isDownloading: StateFlow<Boolean> = _isDownloading.asStateFlow()
 
     private var mediaController: MediaController? = null
     private var progressJob: Job? = null
@@ -106,7 +114,7 @@ class PlayerViewModel @Inject constructor(
             val mediaItems = tracks.map { track ->
                 MediaItem.Builder()
                     .setMediaId(track.id)
-                    .setUri(DRIVE_MEDIA_URL_TEMPLATE.format(track.id))
+                    .setUri(track.localUri?.let { Uri.fromFile(File(it)) } ?: Uri.parse(DRIVE_MEDIA_URL_TEMPLATE.format(track.id)))
                     .setMimeType(MimeTypes.AUDIO_MPEG)
                     .build()
             }
@@ -144,6 +152,19 @@ class PlayerViewModel @Inject constructor(
 
     fun seekTo(positionMs: Long) {
         mediaController?.seekTo(positionMs.coerceAtLeast(0L))
+    }
+
+
+    fun downloadCurrentAudiobook(audiobookId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isDownloading.value = true
+            runCatching {
+                driveRepository.downloadAudiobookAssets(audiobookId)
+            }.onSuccess {
+                loadAudiobook(audiobookId)
+            }
+            _isDownloading.value = false
+        }
     }
 
     fun skipBackward10Seconds() {

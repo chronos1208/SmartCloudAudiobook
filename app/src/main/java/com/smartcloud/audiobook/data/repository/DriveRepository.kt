@@ -6,6 +6,7 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.FileList
 import com.smartcloud.audiobook.data.auth.GoogleAccountStore
 import com.smartcloud.audiobook.data.local.AudioTrackEntity
+import com.smartcloud.audiobook.data.local.AudiobookDao
 import com.smartcloud.audiobook.data.local.AudiobookEntity
 import com.smartcloud.audiobook.data.remote.ITunesApiService
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -19,6 +20,7 @@ class DriveRepository @Inject constructor(
     private val accountStore: GoogleAccountStore,
     private val credential: GoogleAccountCredential,
     private val iTunesApiService: ITunesApiService,
+    private val audiobookDao: AudiobookDao,
     @ApplicationContext private val context: Context,
 ) {
     suspend fun scanAudiobooks(rootFolderId: String): List<DriveAudiobookBundle> {
@@ -59,6 +61,31 @@ class DriveRepository @Inject constructor(
                     DriveAudiobookBundle(audiobook = audiobook, tracks = tracks)
                 }
             }
+    }
+
+
+    suspend fun downloadAudiobookAssets(audiobookId: String) {
+        credential.selectedAccountName = accountStore.getSelectedAccountName()
+        val tracks = audiobookDao.getTracksByAudiobookId(audiobookId)
+        if (tracks.isEmpty()) return
+
+        val audiobookDir = File(context.filesDir, "downloads/$audiobookId").apply { mkdirs() }
+
+        tracks.forEach { track ->
+            val safeName = sanitizeFileName(track.fileName)
+            val outputFile = File(audiobookDir, safeName)
+            outputFile.outputStream().use { stream ->
+                driveService.files().get(track.id).executeMediaAndDownloadTo(stream)
+            }
+            audiobookDao.updateTrackLocalUri(track.id, outputFile.absolutePath)
+        }
+
+        audiobookDao.getAudiobookById(audiobookId)?.pdfFileId?.let { pdfFileId ->
+            val pdfFile = File(audiobookDir, "reference-$pdfFileId.pdf")
+            pdfFile.outputStream().use { stream ->
+                driveService.files().get(pdfFileId).executeMediaAndDownloadTo(stream)
+            }
+        }
     }
 
     suspend fun downloadPdfToCache(pdfFileId: String): File {
@@ -127,6 +154,11 @@ class DriveRepository @Inject constructor(
         val audioFiles: MutableList<com.google.api.services.drive.model.File> = mutableListOf(),
         var pdfFile: com.google.api.services.drive.model.File? = null,
     )
+
+    private fun sanitizeFileName(name: String): String {
+        val cleaned = name.replace(Regex("""[\\/:*?"<>|]"""), "_").ifBlank { "track" }
+        return if (cleaned.substringAfterLast('.', "").isNotBlank()) cleaned else "$cleaned.mp3"
+    }
 
     companion object {
         private const val MIME_TYPE_FOLDER = "application/vnd.google-apps.folder"
