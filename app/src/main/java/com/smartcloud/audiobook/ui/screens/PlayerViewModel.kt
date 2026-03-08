@@ -17,11 +17,13 @@ import com.smartcloud.audiobook.data.repository.DriveRepository
 import com.smartcloud.audiobook.service.AudiobookPlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -49,6 +51,12 @@ class PlayerViewModel @Inject constructor(
 
     private val _isDownloading = MutableStateFlow(false)
     val isDownloading: StateFlow<Boolean> = _isDownloading.asStateFlow()
+
+    private val _isCurrentAudiobookDownloaded = MutableStateFlow(false)
+    val isCurrentAudiobookDownloaded: StateFlow<Boolean> = _isCurrentAudiobookDownloaded.asStateFlow()
+
+    private val _playerEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val playerEvents: SharedFlow<String> = _playerEvents.asSharedFlow()
 
     private var mediaController: MediaController? = null
     private var progressJob: Job? = null
@@ -110,6 +118,7 @@ class PlayerViewModel @Inject constructor(
 
             _currentAudiobookPdfFileId.value = audiobook.pdfFileId
             _currentAudiobookTitle.value = audiobook.title
+            _isCurrentAudiobookDownloaded.value = tracks.any { !it.localUri.isNullOrBlank() }
 
             val mediaItems = tracks.map { track ->
                 MediaItem.Builder()
@@ -154,16 +163,29 @@ class PlayerViewModel @Inject constructor(
         mediaController?.seekTo(positionMs.coerceAtLeast(0L))
     }
 
-
     fun downloadCurrentAudiobook(audiobookId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             _isDownloading.value = true
             runCatching {
                 driveRepository.downloadAudiobookAssets(audiobookId)
             }.onSuccess {
                 loadAudiobook(audiobookId)
+            }.onFailure {
+                _playerEvents.emit("ダウンロードに失敗しました")
             }
             _isDownloading.value = false
+        }
+    }
+
+    fun deleteCurrentAudiobookDownload(audiobookId: String) {
+        viewModelScope.launch {
+            runCatching {
+                driveRepository.deleteAudiobookAssets(audiobookId)
+            }.onSuccess {
+                loadAudiobook(audiobookId)
+            }.onFailure {
+                _playerEvents.emit("削除に失敗しました")
+            }
         }
     }
 

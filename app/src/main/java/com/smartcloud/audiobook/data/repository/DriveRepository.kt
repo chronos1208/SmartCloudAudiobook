@@ -13,6 +13,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Singleton
 class DriveRepository @Inject constructor(
@@ -63,11 +65,10 @@ class DriveRepository @Inject constructor(
             }
     }
 
-
-    suspend fun downloadAudiobookAssets(audiobookId: String) {
+    suspend fun downloadAudiobookAssets(audiobookId: String) = withContext(Dispatchers.IO) {
         credential.selectedAccountName = accountStore.getSelectedAccountName()
         val tracks = audiobookDao.getTracksByAudiobookId(audiobookId)
-        if (tracks.isEmpty()) return
+        if (tracks.isEmpty()) return@withContext
 
         val audiobookDir = File(context.filesDir, "downloads/$audiobookId").apply { mkdirs() }
 
@@ -88,13 +89,31 @@ class DriveRepository @Inject constructor(
         }
     }
 
-    suspend fun downloadPdfToCache(pdfFileId: String): File {
+    suspend fun downloadPdfToCache(pdfFileId: String): File = withContext(Dispatchers.IO) {
         credential.selectedAccountName = accountStore.getSelectedAccountName()
         val outputFile = File(context.cacheDir, "pdf-$pdfFileId.pdf")
         outputFile.outputStream().use { stream ->
             driveService.files().get(pdfFileId).executeMediaAndDownloadTo(stream)
         }
-        return outputFile
+        outputFile
+    }
+
+    suspend fun deleteAudiobookAssets(audiobookId: String) = withContext(Dispatchers.IO) {
+        val pdfFileId = audiobookDao.getAudiobookById(audiobookId)?.pdfFileId
+
+        val audiobookDir = File(context.filesDir, "downloads/$audiobookId")
+        if (audiobookDir.exists()) {
+            audiobookDir.deleteRecursively()
+        }
+
+        pdfFileId?.let {
+            val cachePdf = File(context.cacheDir, "pdf-$it.pdf")
+            if (cachePdf.exists()) {
+                cachePdf.delete()
+            }
+        }
+
+        audiobookDao.clearTrackLocalUrisByAudiobookId(audiobookId)
     }
 
     private fun scanFolderRecursive(
@@ -156,7 +175,7 @@ class DriveRepository @Inject constructor(
     )
 
     private fun sanitizeFileName(name: String): String {
-        val cleaned = name.replace(Regex("""[\\/:*?"<>|]"""), "_").ifBlank { "track" }
+        val cleaned = name.replace(Regex("""[\\/:*?\"<>|]"""), "_").ifBlank { "track" }
         return if (cleaned.substringAfterLast('.', "").isNotBlank()) cleaned else "$cleaned.mp3"
     }
 
